@@ -1,0 +1,146 @@
+.text
+.align	2
+.global	main
+
+/* Registers:
+	x19: tpi
+	x20: phase 
+	x21: theta
+	x22: increment
+	x23: l
+	x24: c
+	x25: LINES
+	x26: COLS
+	x27: intensity 
+	x28: use for temp addition variables 
+
+*/
+main:
+	stp			x30, x19, [sp, -16]!
+	stp			x20, x21, [sp, -16]!
+	stp			x22, x23, [sp, -16]!
+	stp			x24, x25, [sp, -16]!
+	stp			x26, x27, [sp, -16]!
+	stp			x28, x29, [sp, -16]!
+
+	//call initscr()
+	bl			initscr
+
+	ldr			d0, pi
+	//calculate pi * 2 
+	fadd		d0, d0, d0
+	fmov		d19, d0
+	ldr			x0, =testtpi
+	bl			printf
+	//set phase to equal 0
+	ldr			d20, zero
+	//set theta to equal 0
+	ldr			d21, zero
+
+	//load up lines 
+	adrp		x0, :got:LINES
+	ldr			x0, [x0, #:got_lo12:LINES]
+	ldr			w0, [x0]
+	//store LINES in w25
+	mov			w25, w0
+	//load up cols 
+	adrp		x0, :got:COLS
+	ldr			x0,[x0, #:got_lo12:COLS]
+	ldr			w0, [x0]
+	//store COLS in w26
+	mov			w26, w0
+
+	//cast COLS into a double 
+	ucvtf		d26, w26
+	//double increment = tpi / (double) COLS; - store it in d22 
+	fdiv		d22, d19, d26
+	
+top:
+	bl			erase
+	//add increment to phase 
+	fadd		d20, d20, d22
+	// l = 0
+	mov			w23, wzr
+
+sinner:
+	//if (l >= LINES) goto bottom
+	cmp			w23, w25
+	bge			bottom
+	//theta = 0
+	ldr		d21, zero
+	//c = 0
+	mov			w24, wzr
+
+tinner:
+	//if (c >= COLS) goto binner;
+	cmp			w24, w26
+	bge			binner
+	//(phase + theta) - store in d27
+	fadd		d27, d20, d21
+	fmov		d0, d27
+	//(sin (phase + theta)) is returned into d0
+	bl			sin
+
+	fmov		d28, 1.0
+	//(sin(phase + theta) + 1.0) is in d0 after these 
+	fadd		d0, d0, d28
+
+	fmov		d28, 10.0
+	//(2.0 * 10) - stored in d28
+	fadd		d28, d28, d28
+	//intensity = (int) ((sin(phase + theta) + 1.0) / 2.0 * 10) - store intensity in d27
+	fdiv		d27, d0, d28
+	//convert intensity value to be an int 
+	fcvtas		x27, d27
+
+	//mvaddch(l, c, levels[intensity])
+	mov			w0, w23
+	mov			w1, w24
+	ldr			x2, =levels
+	add			x2, x2, x27
+	//call mvadd ch
+	bl			mvaddch
+	
+	//theta+= increment 
+	add			x21, x21, x22	
+	add			x24, x24, 1
+	b			tinner
+
+binner:
+	add			x23, x23, 1
+	b			sinner
+
+bottom:
+	adrp		x0, :got:stdscr
+	ldr			x0, [x0, #:got_lo12:stdscr]
+	ldr			x0,[x0]
+	
+	mov			x1, xzr
+	mov			x2, xzr
+	bl			box
+	bl			refresh
+	b			top
+
+
+	bl			endwin
+	ldp			x28, x29, [sp], 16
+	ldp			x26, x27, [sp], 16
+	ldp			x24, x25, [sp], 16
+	ldp			x22, x23, [sp], 16
+	ldp			x20, x21, [sp], 16
+	ldp			x30, x19, [sp], 16
+	mov			x0, xzr
+	ret
+
+
+.data 
+pi:				.double		3.14159265359
+zero:			.double		0.0
+levels:			.asciz		" .:-=+*#%@"
+p:				.asciz		"cos(2*pi) is: %f\n"
+testtpi:		.asciz		"(2 * pi) is: %f\n"		
+testcols:		.asciz 		"increment is: %f\n"
+testphase:		.asciz		"changed phase is: %f\n"
+testsin:		.asciz		"testing sin: %f\n"
+testmv:			.asciz		"testing mvaddch: %f\n"
+.end
