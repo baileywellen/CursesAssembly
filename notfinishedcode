@@ -12,7 +12,8 @@
 	x25: LINES
 	x26: COLS
 	x27: intensity 
-	x28: use for temp addition variables 
+	x28: levels 
+	
 
 */
 main:
@@ -51,9 +52,9 @@ main:
 	mov			w26, w0
 
 	//cast COLS into a double 
-	ucvtf		d26, w26
+	scvtf		d0, w26
 	//double increment = tpi / (double) COLS; - store it in d22 
-	fdiv		d22, d19, d26
+	fdiv		d22, d19, d0
 	
 top:
 	bl			erase
@@ -67,7 +68,7 @@ sinner:
 	cmp			w23, w25
 	bge			bottom
 	//theta = 0
-	ldr		d21, zero
+	ldr			d21, zero
 	//c = 0
 	mov			w24, wzr
 
@@ -75,29 +76,30 @@ tinner:
 	//if (c >= COLS) goto binner;
 	cmp			w24, w26
 	bge			binner
-	//(phase + theta) - store in d27
-	fadd		d27, d20, d21
-	fmov		d0, d27
+	//(phase + theta) is now in d0
+	fadd		d0, d20, d21
 	//(sin (phase + theta)) is returned into d0
 	bl			sin
 
-	fmov		d28, 1.0
+	fmov		d1, 1.0
 	//(sin(phase + theta) + 1.0) is in d0 after these 
-	fadd		d0, d0, d28
-
-	fmov		d28, 10.0
-	//(2.0 * 10) - stored in d28
-	fadd		d28, d28, d28
-	//intensity = (int) ((sin(phase + theta) + 1.0) / 2.0 * 10) - store intensity in d27
-	fdiv		d27, d0, d28
+	fadd		d0, d0, d1
+	fmov		d1, 2.0
+	fdiv		d0, d0, d1
+	//(sin (phase + theta) + 1.0) / 2.0
+	fmov		d1, 10.0
+	//(sin (phase + theta) + 1.0) / 2.0 * 10.0
+	fmul		d0, d0, d1
 	//convert intensity value to be an int 
-	fcvtas		x27, d27
+	fcvtzs		x27, d0
+
 
 	//mvaddch(l, c, levels[intensity])
 	mov			w0, w23
 	mov			w1, w24
-	ldr			x2, =levels
-	add			x2, x2, x27
+	//ldr			x2, =levels
+	ldr			x28, =levels 
+	ldr			x2, [x28, x27]
 	//call mvadd ch
 	bl			mvaddch
 	
@@ -114,7 +116,7 @@ bottom:
 	adrp		x0, :got:stdscr
 	ldr			x0, [x0, #:got_lo12:stdscr]
 	ldr			x0,[x0]
-	
+
 	mov			x1, xzr
 	mov			x2, xzr
 	bl			box
