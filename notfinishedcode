@@ -3,6 +3,8 @@
 .global	main
 
 /* Registers:
+	
+
 	x19: tpi
 	x20: phase 
 	x21: theta
@@ -99,7 +101,7 @@ tinner:
 	mov			w1, w24
 	//ldr			x2, =levels
 	ldr			x28, =levels 
-	ldr			x2, [x28, x27]
+	ldrb		w2, [x28, x27]
 	//call mvadd ch
 	bl			mvaddch
 	
